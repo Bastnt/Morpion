@@ -1,36 +1,19 @@
-#include <iostream>
-#include <list>
+#include "main.h"
 
-using namespace std;
+int PlayedActions = 0;
 
-enum State { Draw=0, Win=1, None=2 };
+short opponent(short player) {
+	return (player == 1 ? 2 : 1);
+}
 
-int DIMENSION = 3;
-int WINROW = 3;
-short PLAYER_COLOR = 1;
-int INFINITE_SCORE = DIMENSION * DIMENSION * 4;
-
-int PlayedActions = 1;
-
-static int STATIC_VALUES[3][3] = 
-{
-	0, 0, 0, 
-	0, 0, 0, 
-	0, 0, 0, 
-};
-
-int TEST[3][3] = 
-{
-	0, 0, 1, 
-	2, 1, 2, 
-	1, 1, 0, 
-};
-
-State terminalState(int** board, int x, int y) {
-	if(PlayedActions == 0)
+State terminalState(int** board, Move move) {
+	if(PlayedActions == 0 || move.x == -1)
 		return None;
-	if(PlayedActions == DIMENSION*DIMENSION)
-		return Draw;
+
+	int x = move.x;
+	int y = move.y;
+	
+	
 
 	short color = board[x][y];
 	int a,b,row;
@@ -73,46 +56,146 @@ State terminalState(int** board, int x, int y) {
 
 	if(row >= WINROW)
 		return Win;
+	else if(PlayedActions == DIMENSION*DIMENSION)
+		return Draw;
 	else
 		return None;
         
 }
 
-list<int[2]>* legalMoves(int** board) {
-	list<int[2]>* moves = new list<int[2]>();
-	for(int i = 0; i < DIMENSION - 1; ++i) {
-		for(int j = 0; j < DIMENSION - 1; ++j) {
+int staticEvaluation(int** board) {
+	int total = 0;
+	for(int i = 0; i < DIMENSION; ++i) {
+		for(int j = 0; j < DIMENSION; ++j) {
+			total += STATIC_VALUES[i][j];
+		}
+	}
+	return total;
+}
+
+
+list<Move>* legalMoves(int** board) {
+	list<Move>* moves = new list<Move>();
+	for(int i = 0; i < DIMENSION; ++i) {
+		for(int j = 0; j < DIMENSION; ++j) {
 			if(board[i][j] == 0) {
-				int c[] = {i,j};
+				Move c = {i,j};
 				moves->push_front(c);
 			}
 		}
 	}
+	return moves;
 }
 
-void doMove(int** board, int pos[2], short color) {
-	board[pos[0]][pos[1]] = color;
+void doMove(int** board, Move pos, short color) {
+	board[pos.x][pos.y] = color;
 	++PlayedActions;
 }
 
-void undoMove(int** board, int pos[2]) {
-	board[pos[0]][pos[1]] = 0;
+void undoMove(int** board, Move pos) {
+	board[pos.x][pos.y] = 0;
 	--PlayedActions;
 }
 
-int abAlgo(int** board, int depth, int alpha, int beta, short player) {
+int abAlgo(int** board, list<Move>* actions) {
+	Move m = {-1,-1};
+	return abMax(board, -INFINITE_SCORE, INFINITE_SCORE, actions, m);
+}
 
+int abMax(int** board, int alpha, int beta, list<Move>* actions, Move move) {
+	switch(terminalState(board, move)) {
+	case Draw:
+		return 0;
+		break;
+	case Win:
+		return -INFINITE_SCORE;
+		break;
+	}
+
+	list<Move>* children = legalMoves(board);
+
+	int v = -INFINITE_SCORE;
+	int w;
+
+	for(list<Move>::iterator it = children->begin(); it != children->end(); ++it) {
+		list<Move>* tmp = new list<Move>();
+
+		doMove(board, *it, PLAYER_COLOR);
+		display(board);
+		w = abMin(board, alpha, beta, tmp, *it);
+		undoMove(board, *it);
+
+		if(w > v) {
+			v = w;
+			actions = tmp;
+			actions->push_front(*it);
+		}
+
+		if(v >= beta)
+			return v;
+
+		alpha = max(alpha, v);
+	}
+	return v;
+}
+
+int abMin(int** board, int alpha, int beta, list<Move>* actions, Move move) {
+	switch(terminalState(board, move)) {
+	case Draw:
+		return 0;
+		break;
+	case Win:
+		return INFINITE_SCORE;
+		break;
+	}
+
+	list<Move>* children = legalMoves(board);
+
+	int v = INFINITE_SCORE;
+	int w;
+
+	for(list<Move>::iterator it = children->begin(); it != children->end(); ++it) {
+		list<Move>* tmp = new list<Move>();
+		doMove(board, *it, opponent(PLAYER_COLOR));
+		cout << endl;
+		w = abMax(board, alpha, beta, tmp, *it);
+		undoMove(board, *it);
+
+		if(w < v) {
+			v = w;
+			actions = tmp;
+			actions->push_front(*it);
+		}
+
+		if(v <= alpha)
+			return v;
+
+		beta = min(beta, v);
+	}
+	return v;
 }
 
 int main() {
 	int **board = new int*[DIMENSION];
 	for(int x = 0; x < DIMENSION; ++x) {
 		board[x] = new int[DIMENSION];
-		for(int y = 0; y < DIMENSION; ++y)
+		for(int y = 0; y < DIMENSION; ++y) {
+			if(TEST[x][y] != 0)
+				++PlayedActions;
 			board[x][y] = TEST[x][y];
+		}
 	}
 
-	cout << "State: " << terminalState(board, 1,1) << endl;
+	list<Move>* actions = new list<Move>();
+
+	cout << "PlayedActions: " << PlayedActions << endl;
+	cout << "alphabeta: " << abAlgo(board, actions) << endl;
+	cout << "moves: " << "[";
+	for(list<Move>::iterator it = actions->begin(); it != actions->end(); ++it) {
+		cout << "(" << it->x << ", " << it->y << ") ";
+	}
+	cout << "]" << endl;
+	
 	system("PAUSE");
 	return 0;
 }
