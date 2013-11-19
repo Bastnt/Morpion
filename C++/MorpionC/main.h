@@ -1,33 +1,26 @@
 #include <iostream>
 #include <list>
 
-using namespace std;
-
-static int STATIC_VALUES[3][3] = 
-{
-	2, 3, 2, 
-	3, 4, 3, 
-	2, 3, 2, 
-};
-
-static int TEST[3][3] = 
-{
-	1, 2, 1, 
-	2, 0, 2, 
-	1, 2, 1, 
-};
+#define DIMENSION 3
+#define WINROW 3
+#define PLAYER_COLOR 1
+#define INFINITE_SCORE DIMENSION * DIMENSION * 4
 
 enum State { Draw=0, Win=1, None=2 };
+
+static int TEST[DIMENSION][DIMENSION] = 
+{
+	2, 0, 0, 
+	0, 1, 0, 
+	0, 2, 1, 
+};
 
 struct Move {
 	int x;
 	int y;
 };
 
-static int DIMENSION = 3;
-static int WINROW = 3;
-static short PLAYER_COLOR = 1;
-static int INFINITE_SCORE = DIMENSION * DIMENSION * 4;
+using namespace std;
 
 short opponent(short player);
 State terminalState(int** board, Move);
@@ -35,11 +28,12 @@ int staticEvaluation(int** board);
 list<Move>* legalMoves(int** board);
 void doMove(int** board, Move, short color);
 void undoMove(int** board, Move);
-int abAlgo(int** board, list<Move>* actions);
-int abMax(int** board, int alpha, int beta, list<Move>* actions, Move);
-int abMin(int** board, int alpha, int beta, list<Move>* actions, Move);
+int abAlgo(int** board, list<Move>& actions, int depth);
+int abMax(int** board, int alpha, int beta, list<Move>& actions, Move, int depth);
+int abMin(int** board, int alpha, int beta, list<Move>& actions, Move, int depth);
 
 void display(int** board) {
+	cout << "======" <<endl;
 	for(int x = 0; x < DIMENSION; ++x) {
 		for(int y = 0; y < DIMENSION; ++y)
 			cout << board[x][y] << " ";

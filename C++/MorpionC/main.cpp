@@ -12,8 +12,6 @@ State terminalState(int** board, Move move) {
 
 	int x = move.x;
 	int y = move.y;
-	
-	
 
 	short color = board[x][y];
 	int a,b,row;
@@ -33,7 +31,7 @@ State terminalState(int** board, Move move) {
 	row = y - b;
 
 	for(b=y; b < DIMENSION && board[x][b] == color; ++b);
-	row += row + b - y - 1;
+	row +=  b - y - 1;
 
 	if(row >= WINROW)
 		return Win;
@@ -45,6 +43,9 @@ State terminalState(int** board, Move move) {
 
 	for(a=x, b=y; a < DIMENSION && b < DIMENSION && board[a][b] == color; ++b, ++a);
 	row += a - x - 1;
+	
+	if(row >= WINROW)
+		return Win;
 
 	// Diagonal /
 
@@ -63,16 +64,30 @@ State terminalState(int** board, Move move) {
         
 }
 
+int staticValues(int i, int j) {
+	if(i == 0 || i == DIMENSION-1) {
+		if(j == 0 || j == DIMENSION-1)
+			return 2;
+		return 3;
+	}
+
+	if(j==0 || j == DIMENSION-1)
+		return 3;
+	return 4;
+}
+
 int staticEvaluation(int** board) {
 	int total = 0;
 	for(int i = 0; i < DIMENSION; ++i) {
 		for(int j = 0; j < DIMENSION; ++j) {
-			total += STATIC_VALUES[i][j];
+			if(board[i][j]==PLAYER_COLOR)
+				total+= staticValues(i,j);
+			else if(board[i][j]!=0)
+				total-= staticValues(i,j);
 		}
 	}
 	return total;
 }
-
 
 list<Move>* legalMoves(int** board) {
 	list<Move>* moves = new list<Move>();
@@ -97,12 +112,13 @@ void undoMove(int** board, Move pos) {
 	--PlayedActions;
 }
 
-int abAlgo(int** board, list<Move>* actions) {
+int abAlgo(int** board, list<Move>& actions, int depth) {
 	Move m = {-1,-1};
-	return abMax(board, -INFINITE_SCORE, INFINITE_SCORE, actions, m);
+	return abMax(board, -INFINITE_SCORE, INFINITE_SCORE, actions, m, depth);
 }
 
-int abMax(int** board, int alpha, int beta, list<Move>* actions, Move move) {
+int abMax(int** board, int alpha, int beta, list<Move>& actions, Move move, int depth) {
+
 	switch(terminalState(board, move)) {
 	case Draw:
 		return 0;
@@ -112,23 +128,30 @@ int abMax(int** board, int alpha, int beta, list<Move>* actions, Move move) {
 		break;
 	}
 
+	//Depth handling
+	if(depth==0)
+		return staticEvaluation(board);
+	if(depth != -1)
+		depth--;
+
 	list<Move>* children = legalMoves(board);
 
 	int v = -INFINITE_SCORE;
 	int w;
 
 	for(list<Move>::iterator it = children->begin(); it != children->end(); ++it) {
-		list<Move>* tmp = new list<Move>();
-
+		list<Move> &tmp = list<Move>();
+		int i = it->x;
+		int j = it->y;
 		doMove(board, *it, PLAYER_COLOR);
 		display(board);
-		w = abMin(board, alpha, beta, tmp, *it);
+		w = abMin(board, alpha, beta, tmp, *it,depth);
 		undoMove(board, *it);
 
 		if(w > v) {
 			v = w;
 			actions = tmp;
-			actions->push_front(*it);
+			actions.push_front(*it);
 		}
 
 		if(v >= beta)
@@ -139,7 +162,7 @@ int abMax(int** board, int alpha, int beta, list<Move>* actions, Move move) {
 	return v;
 }
 
-int abMin(int** board, int alpha, int beta, list<Move>* actions, Move move) {
+int abMin(int** board, int alpha, int beta, list<Move>& actions, Move move, int depth) {
 	switch(terminalState(board, move)) {
 	case Draw:
 		return 0;
@@ -149,22 +172,26 @@ int abMin(int** board, int alpha, int beta, list<Move>* actions, Move move) {
 		break;
 	}
 
-	list<Move>* children = legalMoves(board);
+	if(depth==0)
+		return staticEvaluation(board);
+	if(depth != -1)
+		depth--;
 
+	list<Move>* children = legalMoves(board);
 	int v = INFINITE_SCORE;
 	int w;
 
 	for(list<Move>::iterator it = children->begin(); it != children->end(); ++it) {
-		list<Move>* tmp = new list<Move>();
+		list<Move> &tmp = list<Move>();
 		doMove(board, *it, opponent(PLAYER_COLOR));
-		cout << endl;
-		w = abMax(board, alpha, beta, tmp, *it);
+		display(board);
+		w = abMax(board, alpha, beta, tmp, *it,depth);
 		undoMove(board, *it);
 
 		if(w < v) {
 			v = w;
 			actions = tmp;
-			actions->push_front(*it);
+			actions.push_front(*it);
 		}
 
 		if(v <= alpha)
@@ -186,16 +213,16 @@ int main() {
 		}
 	}
 
-	list<Move>* actions = new list<Move>();
+	list<Move> actions;
 
 	cout << "PlayedActions: " << PlayedActions << endl;
-	cout << "alphabeta: " << abAlgo(board, actions) << endl;
+	cout << "alphabeta: " << abAlgo(board, actions, 3) << endl;
 	cout << "moves: " << "[";
-	for(list<Move>::iterator it = actions->begin(); it != actions->end(); ++it) {
+	for(list<Move>::iterator it = actions.begin(); it != actions.end(); ++it) {
 		cout << "(" << it->x << ", " << it->y << ") ";
 	}
 	cout << "]" << endl;
-	
 	system("PAUSE");
 	return 0;
+	
 }
